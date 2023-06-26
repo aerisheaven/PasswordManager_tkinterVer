@@ -3,6 +3,7 @@ from tkinter import messagebox
 import string
 import random
 import pyperclip
+import json
 
 NUM_OF_CHARACTERS = 16
 
@@ -25,27 +26,48 @@ def save_password():
     website = website_entry.get()
     email = email_username_entry.get()
     pw = password_entry.get()
+    new_data = {
+        website: {
+            "email": email,
+            "password": pw,
+        }
+    }
     if website == "" or email == "" or pw == "":
         messagebox.showinfo("Warning", "Do not leave any fields empty.")
     else:
-        answer = messagebox.askquestion(f"{website}", f"Email:{email}\nPassword:{pw}\nIs this okay?")
-        if answer == 'yes':
-            with open('pw.txt') as pw_file:
-                data = pw_file.read()
+        try:
+            with open("pw.json", mode="r") as passwords:
+                data = json.load(passwords)
+        except FileNotFoundError:
+            with open("pw.json", mode="w") as new_file:
+                json.dump(new_data, new_file, indent=4)
+        else:
+            data.update(new_data)
+            with open("pw.json", mode="w") as passwords:
+                json.dump(data, passwords, indent=4)
+        finally:
+            website_entry.delete(0, END)
+            email_username_entry.delete(0, END)
+            password_entry.delete(0, END)
 
-            with open("pw.txt", mode="a") as passwords:
-                passwords.write(website)
-                passwords.write(" | ")
-                passwords.write(email)
-                passwords.write(" | ")
-                passwords.write(pw)
-                passwords.write("\n")
-                website_entry.delete(0, END)
-                email_username_entry.delete(0, END)
-                password_entry.delete(0, END)
 
-        elif answer == 'no':
-            pass
+# -------------------------- SEARCH WEBSITE --------------------------- #
+
+
+def search():
+    website = website_entry.get()
+    try:
+        with open("pw.json", mode="r") as passwords:
+            data = json.load(passwords)
+            website_email = data[website]["email"]
+            website_password = data[website]["password"]
+    except KeyError:
+        messagebox.showinfo("Warning", "Website not found.")
+    except FileNotFoundError:
+        messagebox.showinfo("Warning", "File not found.")
+    else:
+        pyperclip.copy(website_password)
+        messagebox.showinfo(f"{website}", f"Email: {website_email}\nPassword: {website_password}")
 
 
 # ---------------------------- UI SETUP ------------------------------- #
@@ -63,8 +85,11 @@ logo = PhotoImage(file="logo.png")
 canvas_logo.create_image(70, 100, image=logo)
 canvas_logo.grid(column=2, row=1, columnspan=2)
 
-website_entry = Entry(width=35)
-website_entry.grid(column=2, row=2, columnspan=2)
+website_entry = Entry(width=21)
+website_entry.grid(column=2, row=2)
+
+search_button = Button(text="Search", width=10, command=search)
+search_button.grid(column=3, row=2)
 
 email_username_label = Label(text="Email/Username:")
 email_username_label.grid(column=1, row=3)
